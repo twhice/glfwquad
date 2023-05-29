@@ -8,3 +8,8 @@ edition = "2021"
 [dependencies.glfw]
 version = "0.51.0"
 default-features = false
+
+[features]
+default = []
+sys = ["glfw/default"]
+wayland = ["glfw/wayland"]
