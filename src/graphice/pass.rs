@@ -53,7 +53,7 @@ impl RenderPass {
                 color_img.texture,
                 0,
             );
-            if let Some(depth_img) = depth_img {
+            if let Some(depth_img) = depth_img.clone() {
                 glFramebufferTexture2D(
                     GL_FRAMEBUFFER,
                     GL_DEPTH_ATTACHMENT,

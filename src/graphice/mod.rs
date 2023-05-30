@@ -269,7 +269,7 @@ impl GraphicsContext {
             let pip_attribute = pip.layout.get(attr_index).copied();
 
             if let Some(Some(attribute)) = pip_attribute {
-                let vb = bindings.vertex_buffers[attribute.buffer_index];
+                let vb = &bindings.vertex_buffers[attribute.buffer_index];
 
                 if cached_attr.map_or(true, |cached_attr| {
                     attribute != cached_attr.attribute || cached_attr.gl_vbuf != vb.gl_buf
