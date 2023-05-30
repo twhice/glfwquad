@@ -1,30 +1,26 @@
 use super::*;
 pub enum PassAction {
     Nothing,
-    Clear {
-        color: Option<(f32, f32, f32, f32)>,
-        depth: Option<f32>,
-        stencil: Option<i32>,
-    },
+    Clear(Clear),
 }
 
 impl PassAction {
     pub fn clear_color(r: f32, g: f32, b: f32, a: f32) -> PassAction {
-        PassAction::Clear {
+        PassAction::Clear(Clear {
             color: Some((r, g, b, a)),
             depth: Some(1.),
             stencil: None,
-        }
+        })
     }
 }
 
 impl Default for PassAction {
     fn default() -> PassAction {
-        PassAction::Clear {
+        PassAction::Clear(Clear {
             color: Some((0.0, 0.0, 0.0, 0.0)),
             depth: Some(1.),
             stencil: None,
-        }
+        })
     }
 }
 
@@ -99,12 +95,17 @@ impl RenderPass {
 
 impl GraphicsContext {
     /// start rendering to the default frame buffer
-    pub fn begin_default_pass(&mut self, action: PassAction) {
+    pub fn begin_default_pass(&mut self, action: PassAction) -> &mut Self {
         self.begin_pass(None, action);
+        self
     }
 
     /// start rendering to an offscreen framebuffer
-    pub fn begin_pass(&mut self, pass: impl Into<Option<RenderPass>>, action: PassAction) {
+    pub fn begin_pass(
+        &mut self,
+        pass: impl Into<Option<RenderPass>>,
+        action: PassAction,
+    ) -> &mut Self {
         let (framebuffer, w, h) = match pass.into() {
             None => {
                 let (screen_width, screen_height) = self.window().get_size();
@@ -130,22 +131,20 @@ impl GraphicsContext {
         }
         match action {
             PassAction::Nothing => {}
-            PassAction::Clear {
-                color,
-                depth,
-                stencil,
-            } => {
-                self.clear(color, depth, stencil);
+            PassAction::Clear(clear) => {
+                clear.apply();
             }
         }
+        self
     }
 
-    pub fn end_render_pass(&mut self) {
+    pub fn end_render_pass(&mut self) -> &mut Self {
         unsafe {
             glBindFramebuffer(GL_FRAMEBUFFER, self.default_framebuffer);
             self.cache.bind_buffer(GL_ARRAY_BUFFER, 0, None);
             self.cache.bind_buffer(GL_ELEMENT_ARRAY_BUFFER, 0, None);
         }
+        self
     }
 
     pub fn commit_frame(&mut self) {

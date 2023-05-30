@@ -93,11 +93,9 @@ impl GraphicsContext {
 }
 
 impl GraphicsContext {
-  
-
-    pub fn set_cull_face(&mut self, cull_face: CullFace) {
+    pub fn set_cull_face(&mut self, cull_face: CullFace) -> &mut Self {
         if self.cache.cull_face == cull_face {
-            return;
+            return self;
         }
 
         match cull_face {
@@ -114,23 +112,29 @@ impl GraphicsContext {
             },
         }
         self.cache.cull_face = cull_face;
+        self
     }
 
-    pub fn set_color_write(&mut self, color_write: ColorMask) {
+    pub fn set_color_write(&mut self, color_write: ColorMask) -> &mut Self {
         if self.cache.color_write == color_write {
-            return;
+            return self;
         }
         let (r, g, b, a) = color_write;
         unsafe { glColorMask(r as _, g as _, b as _, a as _) }
         self.cache.color_write = color_write;
+        self
     }
 
-    pub fn set_blend(&mut self, color_blend: Option<BlendState>, alpha_blend: Option<BlendState>) {
+    pub fn set_blend(
+        &mut self,
+        color_blend: Option<BlendState>,
+        alpha_blend: Option<BlendState>,
+    ) -> &mut Self {
         if color_blend.is_none() && alpha_blend.is_some() {
             panic!("AlphaBlend without ColorBlend");
         }
         if self.cache.color_blend == color_blend && self.cache.alpha_blend == alpha_blend {
-            return;
+            return self;
         }
 
         unsafe {
@@ -169,11 +173,12 @@ impl GraphicsContext {
 
         self.cache.color_blend = color_blend;
         self.cache.alpha_blend = alpha_blend;
+        self
     }
 
-    pub fn set_stencil(&mut self, stencil_test: Option<StencilState>) {
+    pub fn set_stencil(&mut self, stencil_test: Option<StencilState>) -> &mut Self {
         if self.cache.stencil == stencil_test {
-            return;
+            return self;
         }
         unsafe {
             if let Some(stencil) = stencil_test {
@@ -216,25 +221,28 @@ impl GraphicsContext {
         }
 
         self.cache.stencil = stencil_test;
+        self
     }
 
     /// Set a new viewport rectangle.
     /// Should be applied after begin_pass.
-    pub fn apply_viewport(&mut self, x: i32, y: i32, w: i32, h: i32) {
+    pub fn apply_viewport(&mut self, x: i32, y: i32, w: i32, h: i32) -> &mut Self {
         unsafe {
             glViewport(x, y, w, h);
         }
+        self
     }
 
     /// Set a new scissor rectangle.
     /// Should be applied after begin_pass.
-    pub fn apply_scissor_rect(&mut self, x: i32, y: i32, w: i32, h: i32) {
+    pub fn apply_scissor_rect(&mut self, x: i32, y: i32, w: i32, h: i32) -> &mut Self {
         unsafe {
             glScissor(x, y, w, h);
         }
+        self
     }
 
-    pub fn apply_bindings(&mut self, bindings: &Bindings) {
+    pub fn apply_bindings(&mut self, bindings: &Bindings) -> &mut Self {
         let pip = &self.pipelines[self.cache.cur_pipeline.unwrap().0];
         let shader = &self.shaders[pip.shader.0];
 
@@ -303,16 +311,18 @@ impl GraphicsContext {
                 }
             }
         }
+        self
     }
 
-    pub fn apply_uniforms<U>(&mut self, uniforms: &U) {
-        self.apply_uniforms_from_bytes(uniforms as *const _ as *const u8, std::mem::size_of::<U>())
+    pub fn apply_uniforms<U>(&mut self, uniforms: &U) -> &mut Self {
+        self.apply_uniforms_from_bytes(uniforms as *const _ as *const u8, std::mem::size_of::<U>());
+        self
     }
 
     #[doc(hidden)]
     /// Apply uniforms data from array of bytes with very special layout.
     /// Hidden because `apply_uniforms` is the recommended and safer way to work with uniforms.
-    pub fn apply_uniforms_from_bytes(&mut self, uniform_ptr: *const u8, size: usize) {
+    pub fn apply_uniforms_from_bytes(&mut self, uniform_ptr: *const u8, size: usize) -> &mut Self {
         let pip = &self.pipelines[self.cache.cur_pipeline.unwrap().0];
         let shader = &self.shaders[pip.shader.0];
 
@@ -364,14 +374,108 @@ impl GraphicsContext {
             }
             offset += uniform.uniform_type.size() / 4 * uniform.array_count as usize;
         }
+        self
     }
 
-    pub fn clear(
-        &self,
-        color: Option<(f32, f32, f32, f32)>,
-        depth: Option<f32>,
-        stencil: Option<i32>,
-    ) {
+    #[inline]
+    pub fn clear(&self, clear: Clear) {
+        clear.apply()
+    }
+
+    /// Draw elements using currently applied bindings and pipeline.
+    ///
+    /// + `base_element` specifies starting offset in `index_buffer`.
+    /// + `num_elements` specifies length of the slice of `index_buffer` to draw.
+    /// + `num_instances` specifies how many instances should be rendered.
+    ///
+    /// NOTE: num_instances > 1 might be not supported by the GPU (gl2.1 and gles2).
+    /// `features.instancing` check is required.
+    pub fn draw(&self, base_element: i32, num_elements: i32, num_instances: i32) -> &Self {
+        assert!(
+            self.cache.cur_pipeline.is_some(),
+            "Drawing without any binded pipeline"
+        );
+
+        if !self.features.instancing && num_instances != 1 {
+            eprintln!("Instanced rendering is not supported by the GPU");
+            eprintln!("Ignoring this draw call");
+            return self;
+        }
+
+        let pip = &self.pipelines[self.cache.cur_pipeline.unwrap().0];
+        let primitive_type = pip.params.primitive_type.into();
+        let index_type = self.cache.index_type.expect("Unset index buffer type");
+
+        unsafe {
+            if self.features.instancing {
+                glDrawElementsInstanced(
+                    primitive_type,
+                    num_elements,
+                    index_type.into(),
+                    (index_type.size() as i32 * base_element) as *mut _,
+                    num_instances,
+                );
+            } else {
+                glDrawElements(
+                    primitive_type,
+                    num_elements,
+                    index_type.into(),
+                    (index_type.size() as i32 * base_element) as *mut _,
+                );
+            }
+        }
+        self
+    }
+}
+
+impl GraphicsContext {
+    pub fn window(&self) -> &glfw::Window {
+        unsafe { &*self.window.unwrap() }
+    }
+
+    pub fn window_mut(&mut self) -> &mut glfw::Window {
+        unsafe { &mut *self.window.unwrap() }
+    }
+}
+
+#[derive(Debug, Default, Clone, Copy)]
+pub struct Clear {
+    color: Option<(f32, f32, f32, f32)>,
+    depth: Option<f32>,
+    stencil: Option<i32>,
+}
+
+impl Clear {
+    #[inline]
+    pub fn new() -> Self {
+        Self::default()
+    }
+
+    #[inline]
+    pub fn color(mut self, r: f32, g: f32, b: f32, a: f32) -> Self {
+        self.color = Some((r, g, b, a));
+        self
+    }
+
+    #[inline]
+    pub fn depth(mut self, depth: f32) -> Self {
+        self.depth = Some(depth);
+        self
+    }
+
+    #[inline]
+    pub fn stencil(mut self, stencil: i32) -> Self {
+        self.stencil = Some(stencil);
+        self
+    }
+
+    #[inline]
+    pub fn apply(self) {
+        let Self {
+            color,
+            depth,
+            stencil,
+        } = self;
         let mut bits = 0;
         if let Some((r, g, b, a)) = color {
             bits |= GL_COLOR_BUFFER_BIT;
@@ -399,59 +503,5 @@ impl GraphicsContext {
                 glClear(bits);
             }
         }
-    }
-
-    /// Draw elements using currently applied bindings and pipeline.
-    ///
-    /// + `base_element` specifies starting offset in `index_buffer`.
-    /// + `num_elements` specifies length of the slice of `index_buffer` to draw.
-    /// + `num_instances` specifies how many instances should be rendered.
-    ///
-    /// NOTE: num_instances > 1 might be not supported by the GPU (gl2.1 and gles2).
-    /// `features.instancing` check is required.
-    pub fn draw(&self, base_element: i32, num_elements: i32, num_instances: i32) {
-        assert!(
-            self.cache.cur_pipeline.is_some(),
-            "Drawing without any binded pipeline"
-        );
-
-        if !self.features.instancing && num_instances != 1 {
-            eprintln!("Instanced rendering is not supported by the GPU");
-            eprintln!("Ignoring this draw call");
-            return;
-        }
-
-        let pip = &self.pipelines[self.cache.cur_pipeline.unwrap().0];
-        let primitive_type = pip.params.primitive_type.into();
-        let index_type = self.cache.index_type.expect("Unset index buffer type");
-
-        unsafe {
-            if self.features.instancing {
-                glDrawElementsInstanced(
-                    primitive_type,
-                    num_elements,
-                    index_type.into(),
-                    (index_type.size() as i32 * base_element) as *mut _,
-                    num_instances,
-                );
-            } else {
-                glDrawElements(
-                    primitive_type,
-                    num_elements,
-                    index_type.into(),
-                    (index_type.size() as i32 * base_element) as *mut _,
-                );
-            }
-        }
-    }
-}
-
-impl GraphicsContext {
-    pub fn window(&self) -> &glfw::Window {
-        unsafe { &*self.window.unwrap() }
-    }
-
-    pub fn window_mut(&mut self) -> &mut glfw::Window {
-        unsafe { &mut *self.window.unwrap() }
     }
 }
