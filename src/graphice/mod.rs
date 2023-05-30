@@ -1,6 +1,5 @@
 use std::{ffi::CString, mem};
 
-pub mod binding;
 pub mod blend;
 pub mod buffer;
 pub mod cache;
@@ -13,9 +12,7 @@ pub mod shader;
 pub mod stencil;
 mod transmute;
 pub mod uniform;
-pub mod vertex;
 
-use binding::*;
 use blend::*;
 use buffer::*;
 use cache::*;
@@ -26,7 +23,6 @@ use pipeline::*;
 use shader::*;
 use stencil::*;
 use uniform::*;
-use vertex::*;
 
 use std::{error::Error, fmt::Display};
 mod texture;

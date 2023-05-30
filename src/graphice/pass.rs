@@ -24,14 +24,14 @@ impl Default for PassAction {
     }
 }
 
-#[derive(Clone, Copy, Debug, PartialEq)]
-pub struct RenderPass(pub(crate) usize);
-
 pub(crate) struct RenderPassInternal {
     pub(crate) gl_fb: GLuint,
     pub(crate) texture: Texture,
     pub(crate) depth_texture: Option<Texture>,
 }
+
+#[derive(Clone, Copy, Debug, PartialEq)]
+pub struct RenderPass(pub(crate) usize);
 
 impl RenderPass {
     pub fn new(
@@ -78,18 +78,13 @@ impl RenderPass {
     pub fn texture(&self, ctx: &mut GraphicsContext) -> Texture {
         let render_pass = &mut ctx.passes[self.0];
 
-        render_pass.texture
+        render_pass.texture.clone()
     }
 
     pub fn delete(&self, ctx: &mut GraphicsContext) {
         let render_pass = &mut ctx.passes[self.0];
 
         unsafe { glDeleteFramebuffers(1, &mut render_pass.gl_fb as *mut _) }
-
-        render_pass.texture.delete();
-        if let Some(depth_texture) = render_pass.depth_texture {
-            depth_texture.delete();
-        }
     }
 }
 

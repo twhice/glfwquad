@@ -1,7 +1,7 @@
 use super::gl::{self, *};
 use super::GraphicsContext;
 
-#[derive(Clone, Copy, Debug, PartialEq, Hash)]
+#[derive(Clone, Debug, PartialEq, Hash)]
 pub struct Texture {
     pub(crate) texture: GLuint,
     pub width: u32,
@@ -31,15 +31,10 @@ impl Texture {
             format: TextureFormat::RGBA8, // assumed for now
         }
     }
+}
 
-    /// Delete GPU texture, leaving handle unmodified.
-    ///
-    /// More high-level code on top of miniquad probably is going to call this in Drop implementation of some
-    /// more RAII buffer object.
-    ///
-    /// There is no protection against using deleted textures later. However its not an UB in OpenGl and thats why
-    /// this function is not marked as unsafe
-    pub fn delete(&self) {
+impl Drop for Texture {
+    fn drop(&mut self) {
         unsafe {
             glDeleteTextures(1, &self.texture as *const _);
         }

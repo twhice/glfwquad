@@ -59,7 +59,7 @@ use super::*;
 ///
 /// [`EXT_disjoint_timer_query`]: https://www.khronos.org/registry/OpenGL/extensions/EXT/EXT_disjoint_timer_query.txt
 ///
-#[derive(Clone, Copy)]
+#[derive(Clone)]
 pub struct ElapsedQuery {
     gl_query: GLuint,
 }
@@ -139,13 +139,10 @@ impl ElapsedQuery {
 
         false
     }
+}
 
-    /// Delete query.
-    ///
-    /// Note that the query is not deleted automatically when dropped.
-    ///
-    /// Implemented as `glDeleteQueries(...)` on OpenGL/WebGL platforms.
-    pub fn delete(&mut self) {
+impl Drop for ElapsedQuery {
+    fn drop(&mut self) {
         unsafe { glDeleteQueries(1, &mut self.gl_query) }
         self.gl_query = 0;
     }

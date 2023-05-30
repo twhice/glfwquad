@@ -53,7 +53,7 @@ impl IndexType {
     }
 }
 
-#[derive(Clone, Copy, Debug)]
+#[derive(Clone, Debug)]
 pub struct Buffer {
     pub(crate) gl_buf: GLuint,
     pub(crate) buffer_type: BufferType,
@@ -153,6 +153,7 @@ impl Buffer {
             index_type: Some(index_type),
         }
     }
+
     pub fn update<T>(&self, ctx: &mut GraphicsContext, data: &[T]) {
         if self.buffer_type == BufferType::IndexBuffer {
             assert!(self.index_type.is_some());
@@ -175,15 +176,29 @@ impl Buffer {
     pub fn size(&self) -> usize {
         self.size
     }
+}
 
-    /// Delete GPU buffer, leaving handle unmodified.
-    ///
-    /// More high-level code on top of miniquad probably is going to call this in Drop implementation of some
-    /// more RAII buffer object.
-    ///
-    /// There is no protection against using deleted textures later. However its not an UB in OpenGl and thats why
-    /// this function is not marked as unsafe
-    pub fn delete(&self) {
+impl Drop for Buffer {
+    fn drop(&mut self) {
         unsafe { glDeleteBuffers(1, &self.gl_buf as *const _) }
     }
+}
+
+/// Geometry bindings
+#[derive(Clone, Debug)]
+pub struct Bindings {
+    /// Vertex buffers. Data contained in the buffer must match layout
+    /// specified in the `Pipeline`.
+    ///
+    /// Most commonly vertex buffer will contain `(x,y,z,w)` coordinates of the
+    /// vertex in 3d space, as well as `(u,v)` coordinates that map the vertex
+    /// to some position in the corresponding `Texture`.
+    pub vertex_buffers: Vec<Buffer>,
+    /// Index buffer which instructs the GPU in which order to draw vertices
+    /// from a vertex buffer, with each subsequent 3 indices forming a
+    /// triangle.
+    pub index_buffer: Buffer,
+    /// Textures to be used with when drawing the geometry in the fragment
+    /// shader.
+    pub images: Vec<Texture>,
 }

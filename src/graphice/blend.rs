@@ -43,15 +43,6 @@ impl Default for Equation {
 /// `equation(sfactor * source_color, dfactor * destination_color)`
 /// Where source_color is the new pixel color and destination color is color from the destination buffer.
 ///
-/// Example:
-///```
-///# use miniquad::{BlendState, BlendFactor, BlendValue, Equation};
-///BlendState::new(
-///    Equation::Add,
-///    BlendFactor::Value(BlendValue::SourceAlpha),
-///    BlendFactor::OneMinusValue(BlendValue::SourceAlpha)
-///);
-///```
 /// This will be `source_color * source_color.a + destination_color * (1 - source_color.a)`
 /// Wich is quite common set up for alpha blending.
 #[derive(Debug, Copy, Clone, PartialEq)]
