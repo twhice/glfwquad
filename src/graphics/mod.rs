@@ -10,6 +10,7 @@ pub mod pass;
 pub mod pipeline;
 pub mod shader;
 pub mod stencil;
+mod texture;
 mod transmute;
 pub mod uniform;
 
@@ -25,7 +26,6 @@ use stencil::*;
 use uniform::*;
 
 use std::{error::Error, fmt::Display};
-mod texture;
 pub use texture::{FilterMode, Texture, TextureAccess, TextureFormat, TextureParams, TextureWrap};
 
 pub type ColorMask = (bool, bool, bool, bool);
@@ -431,6 +431,12 @@ impl GraphicsContext {
 
     pub fn window_mut(&mut self) -> &mut glfw::Window {
         unsafe { &mut *self.window.unwrap() }
+    }
+}
+
+impl Drop for GraphicsContext {
+    fn drop(&mut self) {
+        todo!()
     }
 }
 

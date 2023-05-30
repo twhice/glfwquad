@@ -27,7 +27,7 @@ impl Default for PassAction {
 pub(crate) struct RenderPassInternal {
     pub(crate) gl_fb: GLuint,
     pub(crate) texture: Texture,
-    pub(crate) depth_texture: Option<Texture>,
+    pub(crate) _depth_texture: Option<Texture>,
 }
 
 #[derive(Clone, Copy, Debug, PartialEq)]
@@ -67,7 +67,8 @@ impl RenderPass {
         let pass = RenderPassInternal {
             gl_fb,
             texture: color_img,
-            depth_texture: depth_img,
+            // 拿着所有权防止被drop
+            _depth_texture: depth_img,
         };
 
         ctx.passes.push(pass);
